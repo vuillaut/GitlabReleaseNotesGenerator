@@ -43,7 +43,7 @@ setup(
     long_description_content_type="text/markdown",
     author="vuillaut",
     packages=find_packages(exclude=["gitlab_release_notes/tests", ".github"]),
-    install_requires=['python-gitlab>=3.0'],
+    install_requires=['python-gitlab>=3.0', 'python-dateutil'],
     entry_points={
         "console_scripts": ["gitlab-release-notes = gitlab_release_notes.generate:main"]
     },

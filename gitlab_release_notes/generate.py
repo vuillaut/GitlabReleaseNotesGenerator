@@ -1,4 +1,5 @@
 import datetime
+import dateutil.parser  
 import gitlab
 import os.path
 import sys
@@ -43,16 +44,22 @@ def generate_release_notes(project_id, endstr = '  <br>', since=None, quiet=Fals
         last_date = since
     elif not project.releases.list(get_all=False):
         log_pending = f"Changelog of {project.name}:{endstr}"
-        last_date = '0000-01-01T00:00:00Z'
+        last_date = dateutil.parser.isoparse('0000-01-01T00:00:00Z')
     else:
         last_release = project.releases.list(get_all=False)[0]
         log_pending = f"Changelog since release {last_release.name} of {project.name}:{endstr}"
-        last_date = last_release.released_at
+        last_date = dateutil.parser.isoparse(last_release.released_at)
+
+    last_datetime = last_date
+    if not isinstance(last_datetime, datetime.datetime):
+        last_datetime = \
+            datetime.datetime.combine(last_datetime, datetime.datetime.min.time()) \
+                .replace(tzinfo=datetime.timezone.utc)
 
     page = 1
     list_mrs = project.mergerequests.list(state='merged',
                                           get_all=False,
-                                          order_by='updated_at',
+                                          order_by='merged_at',
                                           updated_after=last_date,
                                           page=page)
     if not list_mrs:
@@ -64,6 +71,11 @@ def generate_release_notes(project_id, endstr = '  <br>', since=None, quiet=Fals
     log += log_pending
     while list_mrs:
         for mr in list_mrs:
+            # `updated_at` could be after `merged_at`, e.g. for MRs that has
+            # additional comments after it's merged.
+            if dateutil.parser.isoparse(mr.merged_at) < last_datetime:
+                continue
+
             line = f" * {mr.title} (@{mr.author['username']}){endstr}"
             log += line
 
